@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "whisperkey"
+version = "0.1.0"
+description = "Talk → text in the focused window. Local Whisper, on-device, X11."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Robert Watkin" }]
+keywords = ["whisper", "speech-to-text", "dictation", "linux", "voice", "stt"]
+classifiers = [
+    "Environment :: X11 Applications",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+]
+dependencies = [
+    "faster-whisper>=1.0.3",
+    "sounddevice>=0.4.7",
+    "numpy>=1.26",
+    "pynput>=1.7.7",
+]
+
+# The on-screen badge uses PyGObject/GTK 3, which is provided by the OS
+# (python3-gi) — intentionally NOT a pip dependency. Without it whisperkey
+# still runs and falls back to desktop notifications.
+
+[project.scripts]
+whisperkey = "whisperkey.cli:main"
+
+[tool.setuptools]
+packages = ["whisperkey"]
