@@ -32,9 +32,12 @@ class Config:
     # Phrase segmentation (energy-based VAD). Tune via the config file if your
     # mic/room needs it; defaults suit normal dictation with natural pauses.
     vad_threshold: float = 0.012  # RMS above this = speech (raise if noisy room)
-    silence_hangover: float = 0.7  # seconds of quiet that ends a phrase
+    # Lower hangover = phrases commit sooner (feels more live) at the cost of
+    # splitting on longer mid-sentence pauses. 0.5 s is the dictation sweet
+    # spot; raise toward 0.7 if your natural clause pauses get chopped.
+    silence_hangover: float = 0.5  # seconds of quiet that ends a phrase
     min_speech: float = 0.3  # ignore blips shorter than this (seconds)
-    max_segment: float = 15.0  # force-flush a phrase with no pause (seconds)
+    max_segment: float = 10.0  # force-flush a pauseless monologue sooner (s)
 
     # "paste" -> set clipboard, send the paste chord (atomic, robust; default)
     # "type"  -> inject keystrokes one by one (fragile in TUIs; legacy fallback)

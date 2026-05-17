@@ -15,7 +15,8 @@ import threading
 import numpy as np
 import sounddevice as sd
 
-_SENTINEL = object()  # pushed to the phrase queue when capture has fully stopped
+_SENTINEL = object()  # phrase queue: capture fully stopped and drained
+_END = object()  # raw queue: stream closed, no more audio will ever arrive
 
 
 class PhraseStream:
@@ -64,13 +65,19 @@ class PhraseStream:
         self._worker.start()
 
     def stop(self) -> None:
-        """Signal end-of-capture. The worker drains buffered audio, flushes any
-        in-progress phrase, then enqueues the sentinel."""
+        """Signal end-of-capture. Close the mic stream (PortAudio flushes its
+        final callbacks into _raw as part of stop/close), *then* enqueue an
+        explicit end marker. The worker drains every captured block in order
+        and only finishes when it sees that marker — so toggling off the moment
+        you stop speaking can't lose the last phrase to a queue-empty race."""
+        if not self._running:
+            return
         self._running = False
         if self._stream is not None:
             self._stream.stop()
             self._stream.close()
             self._stream = None
+        self._raw.put(_END)
 
     def get(self) -> np.ndarray | None:
         """Block until the next finalized phrase. Returns None when capture has
@@ -86,18 +93,22 @@ class PhraseStream:
         silence_run = 0.0
         phrase_len = 0.0
 
-        def finalize() -> None:
+        def finalize(*, forced: bool = False) -> None:
             nonlocal buf, in_phrase, silence_run, phrase_len
             speech = phrase_len - silence_run
-            if buf and speech >= self.min_speech:
+            # min_speech rejects ambient blips between phrases. On an explicit
+            # stop the user deliberately ended input, so commit even a short
+            # final phrase — keep only a tiny floor so a one-frame noise spike
+            # doesn't get sent to Whisper as a "phrase".
+            floor = min(self.min_speech, 0.15) if forced else self.min_speech
+            if buf and speech > floor:
                 self._phrases.put(np.concatenate(buf).reshape(-1).astype(np.float32))
             buf, in_phrase, silence_run, phrase_len = [], False, 0.0, 0.0
 
-        while self._running or not self._raw.empty():
-            try:
-                block = self._raw.get(timeout=0.1)
-            except queue.Empty:
-                continue
+        while True:
+            block = self._raw.get()  # blocks; _END (enqueued by stop) ends it
+            if block is _END:
+                break
             mono = block.reshape(-1)
             rms = float(np.sqrt(np.mean(mono**2))) if mono.size else 0.0
             speaking = rms > self.vad_threshold
@@ -117,5 +128,5 @@ class PhraseStream:
             if in_phrase and phrase_len >= self.max_segment:
                 finalize()  # force-flush a long monologue with no pause
 
-        finalize()  # flush whatever was mid-sentence when stop() was called
+        finalize(forced=True)  # flush whatever was mid-sentence at stop()
         self._phrases.put(_SENTINEL)
