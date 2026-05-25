@@ -1,12 +1,26 @@
 # whisperkey
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%2F%20X11-lightgrey.svg)](#known-limits--next)
+
 Talk to your AIs instead of typing. Press a global hotkey and speak — each
 phrase is typed straight into whatever window has focus (your Claude Code /
 ChatGPT / editor prompt box) the moment you pause. Press the hotkey again to
 stop.
 
-**Local only.** Speech-to-text runs on-device via Whisper (faster-whisper).
-No audio leaves the machine. No API key. No subscription.
+**Local only.** Speech-to-text runs on-device via Whisper
+([faster-whisper](https://github.com/SYSTRAN/faster-whisper)). No audio leaves
+the machine. No API key. No subscription.
+
+## Requirements
+
+- Linux with an **X11** session (Wayland not yet supported — see
+  [Known limits](#known-limits--next))
+- Python **3.11+**
+- A working microphone
+- ~140 MB free disk for the default Whisper `base` model (downloaded on first
+  run); CPU-only inference works fine — no GPU required.
 
 ## Why this shape
 
@@ -29,9 +43,15 @@ No audio leaves the machine. No API key. No subscription.
 ## Setup
 
 ```bash
-cd ~/dev/python/whisperkey
+git clone https://github.com/robert-watkin/whisperkey.git
+cd whisperkey
 ./setup.sh          # installs libportaudio2 + xdotool (sudo), makes venv
 ```
+
+`setup.sh` is Ubuntu/Debian-centric (uses `apt`). On other distros, install
+the equivalents of `libportaudio2`, `xdotool`, `python3-gi`, and
+`gir1.2-gtk-3.0`, then `pip install -e .` inside a venv built with
+`--system-site-packages` (so GTK can be imported for the optional badge).
 
 First run downloads the Whisper model (~140 MB for `base`) from Hugging Face.
 
@@ -110,4 +130,16 @@ max_segment = 15.0        # force-flush a pause-less monologue (s)
   yet). Manual `output = "type"` avoids this if you need the clipboard intact.
 - Energy VAD is simple; very quiet speech in a loud room may need
   `vad_threshold` tuning. A learned VAD (silero/webrtc) is a possible upgrade.
-- Possible v2: local-default + a “send this clip to Groq” accuracy hotkey.
+- Possible v2: local-default + a "send this clip to Groq" accuracy hotkey.
+
+## Contributing
+
+This is primarily a personal tool — published in case it's useful to anyone
+else. Issues and small PRs are welcome, but I may be slow to respond and I'll
+push back on changes that drift from the design choices noted above (local-
+only, phrase streaming, paste-by-default). If you want to take it in a
+different direction, fork freely — that's what the MIT license is for.
+
+## License
+
+[MIT](LICENSE) — © 2026 Robert Watkin.
